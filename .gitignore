@@ -1,0 +1,38 @@
+# ===============================
+# Genel
+# ===============================
+bin/
+obj/
+build/
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.tmp
+*.log
+
+# ===============================
+# .NET / ASP.NET Core
+# ===============================
+03_Api/**/bin/
+03_Api/**/obj/
+
+# MySQL şifresi içerdiği için GitHub'a gönderilmez
+03_Api/SporSalonu.Api/appsettings.json
+03_Api/SporSalonu.Api/appsettings.Development.json
+
+# ===============================
+# Flutter
+# ===============================
+04_Mobil/spor_salonu_mobil/.dart_tool/
+04_Mobil/spor_salonu_mobil/build/
+04_Mobil/spor_salonu_mobil/.idea/
+04_Mobil/spor_salonu_mobil/.metadata
+04_Mobil/spor_salonu_mobil/**/*.iml
+
+# ===============================
+# Sistem dosyaları
+# ===============================
+.DS_Store
+Thumbs.db
