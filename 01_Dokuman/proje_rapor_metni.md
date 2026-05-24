@@ -262,12 +262,16 @@ Sistemdeki varlıklar arasındaki ilişkiler aşağıdaki gibidir:
 
 ER diyagramı diagrams.net/draw.io aracı kullanılarak oluşturulmuştur.
 
-**ER diyagram görseli raporun bu bölümüne eklenecektir.**
+![ER Diyagramı - Spor Salonu Yönetim Sistemi](ER_Diyagrami_SporSalonu.png)
 
-Dosya adı:
+**Yukarıdaki diyagramda:**
+- **Varlıklar (Dikdörtgenler):** Üyeler, Antrenörler, Üyelik Paketleri, Üyelikler, Ödemeler, Dersler, Ders Kayıtları, Yoklamalar, Salon Ekipmanları, Ekipman Bakımları
+- **İlişkiler (Çizgiler):** 1-N, N-N ilişkileri gösterilmiştir
+- **Anahtarlar:** Her varlığın birincil anahtarı ve yabancı anahtarları belirtilmiştir
 
-- ER_Diyagrami_SporSalonu.png
-- ER_Diyagrami_SporSalonu.drawio
+**Dosya adı:**
+- `ER_Diyagrami_SporSalonu.drawio` (draw.io/diagrams.net formatı)
+- `ER_Diyagrami_SporSalonu.png` (PNG görseli)
 
 ---
 

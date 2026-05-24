@@ -7,7 +7,8 @@ MySQL Stored Procedure tabanlı işlemler.
 
 import sys
 from PyQt5.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QTabWidget,
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QStackedWidget,
+    QListWidget, QListWidgetItem,
     QLabel, QPushButton, QFrame, QStatusBar, QScrollArea,
     QGridLayout, QMessageBox, QSizePolicy, QSpacerItem
 )
@@ -28,7 +29,8 @@ from services.bakim_service import BakimService
 from styles import MAIN_STYLE, COLORS
 from widgets import (
     StatCard, BaseTableWidget, ActionBar, SectionHeader,
-    confirm_delete, show_error, show_success, filter_table
+    confirm_delete, show_error, show_success, filter_table,
+    get_selected_record, table_item
 )
 from dialogs import (
     UyeDialog, AntrenorDialog, UyelikPaketiDialog, UyelikDialog,
@@ -259,6 +261,7 @@ class DashboardTab(QWidget):
 class UyelerTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.svc = UyeService()
         self._data = []
         self._setup_ui()
         self.refresh()
@@ -266,7 +269,7 @@ class UyelerTab(QWidget):
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(24, 20, 24, 24)
 
         header = SectionHeader("Üye Yönetimi", "Tüm spor salonu üyelerini yönetin", "👤")
         layout.addWidget(header)
@@ -290,7 +293,7 @@ class UyelerTab(QWidget):
         layout.addWidget(self.table)
 
     def refresh(self):
-        rows, err = _safe_proc("sp_uye_listele")
+        rows, err = _safe_call(self.svc.listele, [])
         if err:
             show_error(self, f"Üyeler yüklenemedi:\n{err}")
             return
@@ -325,7 +328,7 @@ class UyelerTab(QWidget):
 
             # fn_uye_toplam_odeme - MySQL Function
             try:
-                toplam, _ = _safe_func("fn_uye_toplam_odeme(%s)", (r["uye_id"],))
+                toplam, _ = _safe_call(lambda: self.svc.toplam_odeme(r["uye_id"]), 0)
                 odeme_item = QTableWidgetItem(f"{float(toplam or 0):,.2f} ₺")
             except Exception:
                 odeme_item = QTableWidgetItem("0.00 ₺")
@@ -342,7 +345,7 @@ class UyelerTab(QWidget):
                 show_error(self, msg)
                 return
             v = dlg.get_values()
-            _, err = _safe_proc("sp_uye_ekle", (
+            err = _safe_void(lambda: self.svc.ekle(
                 v["ad"], v["soyad"], v["telefon"],
                 v["email"], v["cinsiyet"], v["dogum_tarihi"]
             ))
@@ -353,11 +356,10 @@ class UyelerTab(QWidget):
                 self.refresh()
 
     def _duzenle(self):
-        row = self.table.currentRow()
-        if row < 0:
+        data = get_selected_record(self.table, self._data, "uye_id")
+        if not data:
             show_error(self, "Lütfen düzenlemek için bir üye seçin.")
             return
-        data = self._data[row] if row < len(self._data) else None
         if not data:
             return
         dlg = UyeDialog(self, data)
@@ -368,7 +370,7 @@ class UyelerTab(QWidget):
                 return
             v = dlg.get_values()
             aktif = v.get("aktif_mi", 1)
-            _, err = _safe_proc("sp_uye_guncelle", (
+            err = _safe_void(lambda: self.svc.guncelle(
                 data["uye_id"], v["ad"], v["soyad"], v["telefon"],
                 v["email"], v["cinsiyet"], v["dogum_tarihi"], aktif
             ))
@@ -379,16 +381,15 @@ class UyelerTab(QWidget):
                 self.refresh()
 
     def _sil(self):
-        row = self.table.currentRow()
-        if row < 0:
+        data = get_selected_record(self.table, self._data, "uye_id")
+        if not data:
             show_error(self, "Lütfen silmek için bir üye seçin.")
             return
-        data = self._data[row] if row < len(self._data) else None
         if not data:
             return
         name = f"{data.get('ad', '')} {data.get('soyad', '')}"
         if confirm_delete(self, name):
-            _, err = _safe_proc("sp_uye_sil", (data["uye_id"],))
+            err = _safe_void(lambda: self.svc.sil(data["uye_id"]))
             if err:
                 show_error(self, f"Silme başarısız:\n{err}")
             else:
@@ -403,6 +404,7 @@ class UyelerTab(QWidget):
 class AntrenorlerTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.svc = AntrenorService()
         self._data = []
         self._setup_ui()
         self.refresh()
@@ -410,7 +412,7 @@ class AntrenorlerTab(QWidget):
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(24, 20, 24, 24)
 
         header = SectionHeader("Antrenör Yönetimi", "Spor salonu antrenörlerini yönetin", "🏅")
         layout.addWidget(header)
@@ -432,7 +434,7 @@ class AntrenorlerTab(QWidget):
         layout.addWidget(self.table)
 
     def refresh(self):
-        rows, err = _safe_proc("sp_antrenor_listele")
+        rows, err = _safe_call(self.svc.listele, [])
         if err:
             show_error(self, f"Antrenörler yüklenemedi:\n{err}")
             return
@@ -475,7 +477,7 @@ class AntrenorlerTab(QWidget):
             if not ok:
                 show_error(self, msg); return
             v = dlg.get_values()
-            _, err = _safe_proc("sp_antrenor_ekle", (
+            err = _safe_void(lambda: self.svc.ekle(
                 v["ad"], v["soyad"], v["telefon"], v["email"],
                 v["uzmanlik_alani"], v["maas"], v["ise_baslama_tarihi"]
             ))
@@ -486,10 +488,9 @@ class AntrenorlerTab(QWidget):
                 self.refresh()
 
     def _duzenle(self):
-        row = self.table.currentRow()
-        if row < 0:
+        data = get_selected_record(self.table, self._data, "antrenor_id")
+        if not data:
             show_error(self, "Lütfen bir antrenör seçin."); return
-        data = self._data[row] if row < len(self._data) else None
         if not data: return
         dlg = AntrenorDialog(self, data)
         if dlg.exec_() == AntrenorDialog.Accepted:
@@ -498,7 +499,7 @@ class AntrenorlerTab(QWidget):
                 show_error(self, msg); return
             v = dlg.get_values()
             aktif = v.get("aktif_mi", 1)
-            _, err = _safe_proc("sp_antrenor_guncelle", (
+            err = _safe_void(lambda: self.svc.guncelle(
                 data["antrenor_id"], v["ad"], v["soyad"], v["telefon"], v["email"],
                 v["uzmanlik_alani"], v["maas"], v["ise_baslama_tarihi"], aktif
             ))
@@ -509,14 +510,13 @@ class AntrenorlerTab(QWidget):
                 self.refresh()
 
     def _sil(self):
-        row = self.table.currentRow()
-        if row < 0:
+        data = get_selected_record(self.table, self._data, "antrenor_id")
+        if not data:
             show_error(self, "Lütfen bir antrenör seçin."); return
-        data = self._data[row] if row < len(self._data) else None
         if not data: return
         name = f"{data.get('ad', '')} {data.get('soyad', '')}"
         if confirm_delete(self, name):
-            _, err = _safe_proc("sp_antrenor_sil", (data["antrenor_id"],))
+            err = _safe_void(lambda: self.svc.sil(data["antrenor_id"]))
             if err:
                 show_error(self, f"Silme başarısız:\n{err}")
             else:
@@ -531,6 +531,7 @@ class AntrenorlerTab(QWidget):
 class PaketlerTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.svc = PaketService()
         self._data = []
         self._setup_ui()
         self.refresh()
@@ -538,7 +539,7 @@ class PaketlerTab(QWidget):
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(24, 20, 24, 24)
 
         header = SectionHeader("Üyelik Paketi Yönetimi", "Üyelik paketlerini tanımlayın", "📦")
         layout.addWidget(header)
@@ -559,7 +560,7 @@ class PaketlerTab(QWidget):
         layout.addWidget(self.table)
 
     def refresh(self):
-        rows, err = _safe_proc("sp_uyelik_paketi_listele")
+        rows, err = _safe_call(self.svc.listele, [])
         if err:
             show_error(self, f"Paketler yüklenemedi:\n{err}"); return
         self._data = rows
@@ -598,7 +599,7 @@ class PaketlerTab(QWidget):
             if not ok:
                 show_error(self, msg); return
             v = dlg.get_values()
-            _, err = _safe_proc("sp_uyelik_paketi_ekle", (
+            err = _safe_void(lambda: self.svc.ekle(
                 v["paket_adi"], v["sure_gun"], v["ucret"], v["aciklama"]
             ))
             if err:
@@ -608,10 +609,9 @@ class PaketlerTab(QWidget):
                 self.refresh()
 
     def _duzenle(self):
-        row = self.table.currentRow()
-        if row < 0:
+        data = get_selected_record(self.table, self._data, "paket_id")
+        if not data:
             show_error(self, "Lütfen bir paket seçin."); return
-        data = self._data[row] if row < len(self._data) else None
         if not data: return
         dlg = UyelikPaketiDialog(self, data)
         if dlg.exec_() == UyelikPaketiDialog.Accepted:
@@ -620,7 +620,7 @@ class PaketlerTab(QWidget):
                 show_error(self, msg); return
             v = dlg.get_values()
             aktif = v.get("aktif_mi", 1)
-            _, err = _safe_proc("sp_uyelik_paketi_guncelle", (
+            err = _safe_void(lambda: self.svc.guncelle(
                 data["paket_id"], v["paket_adi"], v["sure_gun"],
                 v["ucret"], v["aciklama"], aktif
             ))
@@ -631,13 +631,12 @@ class PaketlerTab(QWidget):
                 self.refresh()
 
     def _sil(self):
-        row = self.table.currentRow()
-        if row < 0:
+        data = get_selected_record(self.table, self._data, "paket_id")
+        if not data:
             show_error(self, "Lütfen bir paket seçin."); return
-        data = self._data[row] if row < len(self._data) else None
         if not data: return
         if confirm_delete(self, data.get("paket_adi", "")):
-            _, err = _safe_proc("sp_uyelik_paketi_sil", (data["paket_id"],))
+            err = _safe_void(lambda: self.svc.sil(data["paket_id"]))
             if err:
                 show_error(self, f"Silme başarısız:\n{err}")
             else:
@@ -652,6 +651,9 @@ class PaketlerTab(QWidget):
 class UyeliklerTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.svc = UyelikService()
+        self._uye_svc = UyeService()
+        self._paket_svc = PaketService()
         self._data = []
         self._setup_ui()
         self.refresh()
@@ -659,7 +661,7 @@ class UyeliklerTab(QWidget):
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(24, 20, 24, 24)
 
         header = SectionHeader("Üyelik Yönetimi", "Üye-paket eşleştirmelerini yönetin", "🎫")
         layout.addWidget(header)
@@ -681,7 +683,7 @@ class UyeliklerTab(QWidget):
         layout.addWidget(self.table)
 
     def refresh(self):
-        rows, err = _safe_proc("sp_uyelik_listele")
+        rows, err = _safe_call(self.svc.listele, [])
         if err:
             show_error(self, f"Üyelikler yüklenemedi:\n{err}"); return
         self._data = rows
@@ -701,7 +703,7 @@ class UyeliklerTab(QWidget):
 
             # fn_uyelik_kalan_gun - MySQL Function
             try:
-                kalan, _ = _safe_func("fn_uyelik_kalan_gun(%s)", (r["uyelik_id"],))
+                kalan, _ = _safe_call(lambda: self.svc.kalan_gun(r["uyelik_id"]), 0)
                 kalan_str = f"{kalan} gün" if kalan is not None else "—"
             except Exception:
                 kalan_str = "—"
@@ -729,15 +731,15 @@ class UyeliklerTab(QWidget):
         self.table.setSortingEnabled(True)
 
     def _ekle(self):
-        uyeler, _ = _safe_proc("sp_uye_listele")
-        paketler, _ = _safe_proc("sp_uyelik_paketi_listele")
+        uyeler, _ = _safe_call(self._uye_svc.listele, [])
+        paketler, _ = _safe_call(self._paket_svc.listele, [])
         dlg = UyelikDialog(self, uyeler=uyeler, paketler=paketler)
         if dlg.exec_() == UyelikDialog.Accepted:
             ok, msg = dlg.validate()
             if not ok:
                 show_error(self, msg); return
             v = dlg.get_values()
-            _, err = _safe_proc("sp_uyelik_ekle", (
+            err = _safe_void(lambda: self.svc.ekle(
                 v["uye_id"], v["paket_id"],
                 v["baslangic_tarihi"], v["bitis_tarihi"], v["durum"]
             ))
@@ -748,20 +750,19 @@ class UyeliklerTab(QWidget):
                 self.refresh()
 
     def _duzenle(self):
-        row = self.table.currentRow()
-        if row < 0:
+        data = get_selected_record(self.table, self._data, "uyelik_id")
+        if not data:
             show_error(self, "Lütfen bir üyelik seçin."); return
-        data = self._data[row] if row < len(self._data) else None
         if not data: return
-        uyeler, _ = _safe_proc("sp_uye_listele")
-        paketler, _ = _safe_proc("sp_uyelik_paketi_listele")
+        uyeler, _ = _safe_call(self._uye_svc.listele, [])
+        paketler, _ = _safe_call(self._paket_svc.listele, [])
         dlg = UyelikDialog(self, data=data, uyeler=uyeler, paketler=paketler)
         if dlg.exec_() == UyelikDialog.Accepted:
             ok, msg = dlg.validate()
             if not ok:
                 show_error(self, msg); return
             v = dlg.get_values()
-            _, err = _safe_proc("sp_uyelik_guncelle", (
+            err = _safe_void(lambda: self.svc.guncelle(
                 data["uyelik_id"], v["uye_id"], v["paket_id"],
                 v["baslangic_tarihi"], v["bitis_tarihi"], v["durum"]
             ))
@@ -772,14 +773,13 @@ class UyeliklerTab(QWidget):
                 self.refresh()
 
     def _sil(self):
-        row = self.table.currentRow()
-        if row < 0:
+        data = get_selected_record(self.table, self._data, "uyelik_id")
+        if not data:
             show_error(self, "Lütfen bir üyelik seçin."); return
-        data = self._data[row] if row < len(self._data) else None
         if not data: return
         name = f"#{data.get('uyelik_id', '')} – {data.get('uye_ad_soyad', '')}"
         if confirm_delete(self, name):
-            _, err = _safe_proc("sp_uyelik_sil", (data["uyelik_id"],))
+            err = _safe_void(lambda: self.svc.sil(data["uyelik_id"]))
             if err:
                 show_error(self, f"Silme başarısız:\n{err}")
             else:
@@ -794,6 +794,8 @@ class UyeliklerTab(QWidget):
 class OdemelerTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.svc = OdemeService()
+        self._uyelik_svc = UyelikService()
         self._data = []
         self._setup_ui()
         self.refresh()
@@ -801,7 +803,7 @@ class OdemelerTab(QWidget):
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(24, 20, 24, 24)
 
         header = SectionHeader("Ödeme Yönetimi", "Üyelik ödemelerini takip edin", "💳")
         layout.addWidget(header)
@@ -832,7 +834,7 @@ class OdemelerTab(QWidget):
         layout.addWidget(self.table)
 
     def refresh(self):
-        rows, err = _safe_proc("sp_odeme_listele")
+        rows, err = _safe_call(self.svc.listele, [])
         if err:
             show_error(self, f"Ödemeler yüklenemedi:\n{err}"); return
         self._data = rows
@@ -870,14 +872,14 @@ class OdemelerTab(QWidget):
         self.table.setSortingEnabled(True)
 
     def _ekle(self):
-        uyelikler, _ = _safe_proc("sp_uyelik_listele")
+        uyelikler, _ = _safe_call(self._uyelik_svc.listele, [])
         dlg = OdemeDialog(self, uyelikler=uyelikler)
         if dlg.exec_() == OdemeDialog.Accepted:
             ok, msg = dlg.validate()
             if not ok:
                 show_error(self, msg); return
             v = dlg.get_values()
-            _, err = _safe_proc("sp_odeme_ekle", (
+            err = _safe_void(lambda: self.svc.ekle(
                 v["uyelik_id"], v["tutar"],
                 v["odeme_yontemi"], v["odeme_durumu"], v["aciklama"]
             ))
@@ -888,19 +890,18 @@ class OdemelerTab(QWidget):
                 self.refresh()
 
     def _duzenle(self):
-        row = self.table.currentRow()
-        if row < 0:
+        data = get_selected_record(self.table, self._data, "odeme_id")
+        if not data:
             show_error(self, "Lütfen bir ödeme seçin."); return
-        data = self._data[row] if row < len(self._data) else None
         if not data: return
-        uyelikler, _ = _safe_proc("sp_uyelik_listele")
+        uyelikler, _ = _safe_call(self._uyelik_svc.listele, [])
         dlg = OdemeDialog(self, data=data, uyelikler=uyelikler)
         if dlg.exec_() == OdemeDialog.Accepted:
             ok, msg = dlg.validate()
             if not ok:
                 show_error(self, msg); return
             v = dlg.get_values()
-            _, err = _safe_proc("sp_odeme_guncelle", (
+            err = _safe_void(lambda: self.svc.guncelle(
                 data["odeme_id"], v["uyelik_id"], v["tutar"],
                 v["odeme_yontemi"], v["odeme_durumu"], v["aciklama"]
             ))
@@ -911,14 +912,13 @@ class OdemelerTab(QWidget):
                 self.refresh()
 
     def _sil(self):
-        row = self.table.currentRow()
-        if row < 0:
+        data = get_selected_record(self.table, self._data, "odeme_id")
+        if not data:
             show_error(self, "Lütfen bir ödeme seçin."); return
-        data = self._data[row] if row < len(self._data) else None
         if not data: return
         name = f"#{data.get('odeme_id', '')} – {data.get('uye_ad_soyad', '')}"
         if confirm_delete(self, name):
-            _, err = _safe_proc("sp_odeme_sil", (data["odeme_id"],))
+            err = _safe_void(lambda: self.svc.sil(data["odeme_id"]))
             if err:
                 show_error(self, f"Silme başarısız:\n{err}")
             else:
@@ -933,6 +933,8 @@ class OdemelerTab(QWidget):
 class DerslerTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.svc = DersService()
+        self._ant_svc = AntrenorService()
         self._data = []
         self._setup_ui()
         self.refresh()
@@ -940,7 +942,7 @@ class DerslerTab(QWidget):
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(24, 20, 24, 24)
 
         header = SectionHeader("Ders Yönetimi", "Grup derslerini ve programları yönetin", "🏃")
         layout.addWidget(header)
@@ -962,7 +964,7 @@ class DerslerTab(QWidget):
         layout.addWidget(self.table)
 
     def refresh(self):
-        rows, err = _safe_proc("sp_ders_listele")
+        rows, err = _safe_call(self.svc.listele, [])
         if err:
             show_error(self, f"Dersler yüklenemedi:\n{err}"); return
         self._data = rows
@@ -976,7 +978,7 @@ class DerslerTab(QWidget):
 
             # fn_ders_doluluk_orani - MySQL Function
             try:
-                doluluk, _ = _safe_func("fn_ders_doluluk_orani(%s)", (r["ders_id"],))
+                doluluk, _ = _safe_call(lambda: self.svc.doluluk_orani(r["ders_id"]), 0)
                 doluluk_str = f"{float(doluluk or 0):.1f}%"
             except Exception:
                 doluluk_str = "—"
@@ -1005,14 +1007,14 @@ class DerslerTab(QWidget):
         self.table.setSortingEnabled(True)
 
     def _ekle(self):
-        antrenorler, _ = _safe_proc("sp_antrenor_listele")
+        antrenorler, _ = _safe_call(self._ant_svc.listele, [])
         dlg = DersDialog(self, antrenorler=antrenorler)
         if dlg.exec_() == DersDialog.Accepted:
             ok, msg = dlg.validate()
             if not ok:
                 show_error(self, msg); return
             v = dlg.get_values()
-            _, err = _safe_proc("sp_ders_ekle", (
+            err = _safe_void(lambda: self.svc.ekle(
                 v["ders_adi"], v["antrenor_id"], v["kontenjan"],
                 v["ders_gunu"], v["baslangic_saati"], v["bitis_saati"]
             ))
@@ -1023,12 +1025,11 @@ class DerslerTab(QWidget):
                 self.refresh()
 
     def _duzenle(self):
-        row = self.table.currentRow()
-        if row < 0:
+        data = get_selected_record(self.table, self._data, "ders_id")
+        if not data:
             show_error(self, "Lütfen bir ders seçin."); return
-        data = self._data[row] if row < len(self._data) else None
         if not data: return
-        antrenorler, _ = _safe_proc("sp_antrenor_listele")
+        antrenorler, _ = _safe_call(self._ant_svc.listele, [])
         dlg = DersDialog(self, data=data, antrenorler=antrenorler)
         if dlg.exec_() == DersDialog.Accepted:
             ok, msg = dlg.validate()
@@ -1036,7 +1037,7 @@ class DerslerTab(QWidget):
                 show_error(self, msg); return
             v = dlg.get_values()
             aktif = v.get("aktif_mi", 1)
-            _, err = _safe_proc("sp_ders_guncelle", (
+            err = _safe_void(lambda: self.svc.guncelle(
                 data["ders_id"], v["ders_adi"], v["antrenor_id"], v["kontenjan"],
                 v["ders_gunu"], v["baslangic_saati"], v["bitis_saati"], aktif
             ))
@@ -1047,13 +1048,12 @@ class DerslerTab(QWidget):
                 self.refresh()
 
     def _sil(self):
-        row = self.table.currentRow()
-        if row < 0:
+        data = get_selected_record(self.table, self._data, "ders_id")
+        if not data:
             show_error(self, "Lütfen bir ders seçin."); return
-        data = self._data[row] if row < len(self._data) else None
         if not data: return
         if confirm_delete(self, data.get("ders_adi", "")):
-            _, err = _safe_proc("sp_ders_sil", (data["ders_id"],))
+            err = _safe_void(lambda: self.svc.sil(data["ders_id"]))
             if err:
                 show_error(self, f"Silme başarısız:\n{err}")
             else:
@@ -1068,6 +1068,9 @@ class DerslerTab(QWidget):
 class DersKayitlariTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.svc = DersKayitService()
+        self._uye_svc = UyeService()
+        self._ders_svc = DersService()
         self._data = []
         self._setup_ui()
         self.refresh()
@@ -1075,7 +1078,7 @@ class DersKayitlariTab(QWidget):
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(24, 20, 24, 24)
 
         header = SectionHeader("Ders Kayıt Yönetimi", "Üye-ders kayıtlarını yönetin", "📋")
         layout.addWidget(header)
@@ -1103,7 +1106,7 @@ class DersKayitlariTab(QWidget):
         layout.addWidget(self.table)
 
     def refresh(self):
-        rows, err = _safe_proc("sp_ders_kayit_listele")
+        rows, err = _safe_call(self.svc.listele, [])
         if err:
             show_error(self, f"Ders kayıtları yüklenemedi:\n{err}"); return
         self._data = rows
@@ -1137,15 +1140,15 @@ class DersKayitlariTab(QWidget):
         self.table.setSortingEnabled(True)
 
     def _ekle(self):
-        uyeler, _ = _safe_proc("sp_uye_listele")
-        dersler, _ = _safe_proc("sp_ders_listele")
+        uyeler, _ = _safe_call(self._uye_svc.listele, [])
+        dersler, _ = _safe_call(self._ders_svc.listele, [])
         dlg = DersKayitDialog(self, uyeler=uyeler, dersler=dersler)
         if dlg.exec_() == DersKayitDialog.Accepted:
             ok, msg = dlg.validate()
             if not ok:
                 show_error(self, msg); return
             v = dlg.get_values()
-            _, err = _safe_proc("sp_ders_kayit_ekle", (
+            err = _safe_void(lambda: self.svc.ekle(
                 v["uye_id"], v["ders_id"], v["durum"]
             ))
             if err:
@@ -1155,20 +1158,19 @@ class DersKayitlariTab(QWidget):
                 self.refresh()
 
     def _duzenle(self):
-        row = self.table.currentRow()
-        if row < 0:
+        data = get_selected_record(self.table, self._data, "ders_kayit_id")
+        if not data:
             show_error(self, "Lütfen bir kayıt seçin."); return
-        data = self._data[row] if row < len(self._data) else None
         if not data: return
-        uyeler, _ = _safe_proc("sp_uye_listele")
-        dersler, _ = _safe_proc("sp_ders_listele")
+        uyeler, _ = _safe_call(self._uye_svc.listele, [])
+        dersler, _ = _safe_call(self._ders_svc.listele, [])
         dlg = DersKayitDialog(self, data=data, uyeler=uyeler, dersler=dersler)
         if dlg.exec_() == DersKayitDialog.Accepted:
             ok, msg = dlg.validate()
             if not ok:
                 show_error(self, msg); return
             v = dlg.get_values()
-            _, err = _safe_proc("sp_ders_kayit_guncelle", (
+            err = _safe_void(lambda: self.svc.guncelle(
                 data["ders_kayit_id"], v["uye_id"], v["ders_id"], v["durum"]
             ))
             if err:
@@ -1178,14 +1180,13 @@ class DersKayitlariTab(QWidget):
                 self.refresh()
 
     def _sil(self):
-        row = self.table.currentRow()
-        if row < 0:
+        data = get_selected_record(self.table, self._data, "ders_kayit_id")
+        if not data:
             show_error(self, "Lütfen bir kayıt seçin."); return
-        data = self._data[row] if row < len(self._data) else None
         if not data: return
         name = f"#{data.get('ders_kayit_id', '')} – {data.get('uye_ad_soyad', '')}"
         if confirm_delete(self, name):
-            _, err = _safe_proc("sp_ders_kayit_sil", (data["ders_kayit_id"],))
+            err = _safe_void(lambda: self.svc.sil(data["ders_kayit_id"]))
             if err:
                 show_error(self, f"Silme başarısız:\n{err}")
             else:
@@ -1200,6 +1201,8 @@ class DersKayitlariTab(QWidget):
 class YoklamalarTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.svc = YoklamaService()
+        self._dk_svc = DersKayitService()
         self._data = []
         self._setup_ui()
         self.refresh()
@@ -1207,7 +1210,7 @@ class YoklamalarTab(QWidget):
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(24, 20, 24, 24)
 
         header = SectionHeader("Yoklama Yönetimi", "Ders katılımlarını takip edin", "✅")
         layout.addWidget(header)
@@ -1228,7 +1231,7 @@ class YoklamalarTab(QWidget):
         layout.addWidget(self.table)
 
     def refresh(self):
-        rows, err = _safe_proc("sp_yoklama_listele")
+        rows, err = _safe_call(self.svc.listele, [])
         if err:
             show_error(self, f"Yoklamalar yüklenemedi:\n{err}"); return
         self._data = rows
@@ -1262,14 +1265,14 @@ class YoklamalarTab(QWidget):
         self.table.setSortingEnabled(True)
 
     def _ekle(self):
-        ders_kayitlari, _ = _safe_proc("sp_ders_kayit_listele")
+        ders_kayitlari, _ = _safe_call(self._dk_svc.listele, [])
         dlg = YoklamaDialog(self, ders_kayitlari=ders_kayitlari)
         if dlg.exec_() == YoklamaDialog.Accepted:
             ok, msg = dlg.validate()
             if not ok:
                 show_error(self, msg); return
             v = dlg.get_values()
-            _, err = _safe_proc("sp_yoklama_ekle", (
+            err = _safe_void(lambda: self.svc.ekle(
                 v["ders_kayit_id"], v["yoklama_tarihi"],
                 v["katilim_durumu"], v["aciklama"]
             ))
@@ -1280,19 +1283,18 @@ class YoklamalarTab(QWidget):
                 self.refresh()
 
     def _duzenle(self):
-        row = self.table.currentRow()
-        if row < 0:
+        data = get_selected_record(self.table, self._data, "yoklama_id")
+        if not data:
             show_error(self, "Lütfen bir yoklama seçin."); return
-        data = self._data[row] if row < len(self._data) else None
         if not data: return
-        ders_kayitlari, _ = _safe_proc("sp_ders_kayit_listele")
+        ders_kayitlari, _ = _safe_call(self._dk_svc.listele, [])
         dlg = YoklamaDialog(self, data=data, ders_kayitlari=ders_kayitlari)
         if dlg.exec_() == YoklamaDialog.Accepted:
             ok, msg = dlg.validate()
             if not ok:
                 show_error(self, msg); return
             v = dlg.get_values()
-            _, err = _safe_proc("sp_yoklama_guncelle", (
+            err = _safe_void(lambda: self.svc.guncelle(
                 data["yoklama_id"], v["ders_kayit_id"], v["yoklama_tarihi"],
                 v["katilim_durumu"], v["aciklama"]
             ))
@@ -1303,14 +1305,13 @@ class YoklamalarTab(QWidget):
                 self.refresh()
 
     def _sil(self):
-        row = self.table.currentRow()
-        if row < 0:
+        data = get_selected_record(self.table, self._data, "yoklama_id")
+        if not data:
             show_error(self, "Lütfen bir yoklama seçin."); return
-        data = self._data[row] if row < len(self._data) else None
         if not data: return
         name = f"#{data.get('yoklama_id', '')} – {data.get('uye_ad_soyad', '')}"
         if confirm_delete(self, name):
-            _, err = _safe_proc("sp_yoklama_sil", (data["yoklama_id"],))
+            err = _safe_void(lambda: self.svc.sil(data["yoklama_id"]))
             if err:
                 show_error(self, f"Silme başarısız:\n{err}")
             else:
@@ -1325,6 +1326,7 @@ class YoklamalarTab(QWidget):
 class EkipmanlarTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.svc = EkipmanService()
         self._data = []
         self._setup_ui()
         self.refresh()
@@ -1332,7 +1334,7 @@ class EkipmanlarTab(QWidget):
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(24, 20, 24, 24)
 
         header = SectionHeader("Ekipman Yönetimi", "Salon ekipmanlarını takip edin", "🏋️")
         layout.addWidget(header)
@@ -1353,7 +1355,7 @@ class EkipmanlarTab(QWidget):
         layout.addWidget(self.table)
 
     def refresh(self):
-        rows, err = _safe_proc("sp_ekipman_listele")
+        rows, err = _safe_call(self.svc.listele, [])
         if err:
             show_error(self, f"Ekipmanlar yüklenemedi:\n{err}"); return
         self._data = rows
@@ -1392,7 +1394,7 @@ class EkipmanlarTab(QWidget):
             if not ok:
                 show_error(self, msg); return
             v = dlg.get_values()
-            _, err = _safe_proc("sp_ekipman_ekle", (
+            err = _safe_void(lambda: self.svc.ekle(
                 v["ekipman_adi"], v["kategori"], v["alim_tarihi"],
                 v["durum"], v["aciklama"]
             ))
@@ -1403,10 +1405,9 @@ class EkipmanlarTab(QWidget):
                 self.refresh()
 
     def _duzenle(self):
-        row = self.table.currentRow()
-        if row < 0:
+        data = get_selected_record(self.table, self._data, "ekipman_id")
+        if not data:
             show_error(self, "Lütfen bir ekipman seçin."); return
-        data = self._data[row] if row < len(self._data) else None
         if not data: return
         dlg = EkipmanDialog(self, data)
         if dlg.exec_() == EkipmanDialog.Accepted:
@@ -1414,7 +1415,7 @@ class EkipmanlarTab(QWidget):
             if not ok:
                 show_error(self, msg); return
             v = dlg.get_values()
-            _, err = _safe_proc("sp_ekipman_guncelle", (
+            err = _safe_void(lambda: self.svc.guncelle(
                 data["ekipman_id"], v["ekipman_adi"], v["kategori"],
                 v["alim_tarihi"], v["durum"], v["aciklama"]
             ))
@@ -1425,13 +1426,12 @@ class EkipmanlarTab(QWidget):
                 self.refresh()
 
     def _sil(self):
-        row = self.table.currentRow()
-        if row < 0:
+        data = get_selected_record(self.table, self._data, "ekipman_id")
+        if not data:
             show_error(self, "Lütfen bir ekipman seçin."); return
-        data = self._data[row] if row < len(self._data) else None
         if not data: return
         if confirm_delete(self, data.get("ekipman_adi", "")):
-            _, err = _safe_proc("sp_ekipman_sil", (data["ekipman_id"],))
+            err = _safe_void(lambda: self.svc.sil(data["ekipman_id"]))
             if err:
                 show_error(self, f"Silme başarısız:\n{err}")
             else:
@@ -1446,6 +1446,8 @@ class EkipmanlarTab(QWidget):
 class BakimlarTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.svc = BakimService()
+        self._ekipman_svc = EkipmanService()
         self._data = []
         self._setup_ui()
         self.refresh()
@@ -1453,7 +1455,7 @@ class BakimlarTab(QWidget):
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(24, 20, 24, 24)
 
         header = SectionHeader("Ekipman Bakım Yönetimi", "Bakım planlarını ve kayıtları yönetin", "🔧")
         layout.addWidget(header)
@@ -1474,7 +1476,7 @@ class BakimlarTab(QWidget):
         layout.addWidget(self.table)
 
     def refresh(self):
-        rows, err = _safe_proc("sp_bakim_listele")
+        rows, err = _safe_call(self.svc.listele, [])
         if err:
             show_error(self, f"Bakımlar yüklenemedi:\n{err}"); return
         self._data = rows
@@ -1509,14 +1511,14 @@ class BakimlarTab(QWidget):
         self.table.setSortingEnabled(True)
 
     def _ekle(self):
-        ekipmanlar, _ = _safe_proc("sp_ekipman_listele")
+        ekipmanlar, _ = _safe_call(self._ekipman_svc.listele, [])
         dlg = BakimDialog(self, ekipmanlar=ekipmanlar)
         if dlg.exec_() == BakimDialog.Accepted:
             ok, msg = dlg.validate()
             if not ok:
                 show_error(self, msg); return
             v = dlg.get_values()
-            _, err = _safe_proc("sp_bakim_ekle", (
+            err = _safe_void(lambda: self.svc.ekle(
                 v["ekipman_id"], v["bakim_tarihi"], v["aciklama"],
                 v["bakim_maliyeti"], v["bakim_durumu"]
             ))
@@ -1527,19 +1529,18 @@ class BakimlarTab(QWidget):
                 self.refresh()
 
     def _duzenle(self):
-        row = self.table.currentRow()
-        if row < 0:
+        data = get_selected_record(self.table, self._data, "bakim_id")
+        if not data:
             show_error(self, "Lütfen bir bakım kaydı seçin."); return
-        data = self._data[row] if row < len(self._data) else None
         if not data: return
-        ekipmanlar, _ = _safe_proc("sp_ekipman_listele")
+        ekipmanlar, _ = _safe_call(self._ekipman_svc.listele, [])
         dlg = BakimDialog(self, data=data, ekipmanlar=ekipmanlar)
         if dlg.exec_() == BakimDialog.Accepted:
             ok, msg = dlg.validate()
             if not ok:
                 show_error(self, msg); return
             v = dlg.get_values()
-            _, err = _safe_proc("sp_bakim_guncelle", (
+            err = _safe_void(lambda: self.svc.guncelle(
                 data["bakim_id"], v["ekipman_id"], v["bakim_tarihi"],
                 v["aciklama"], v["bakim_maliyeti"], v["bakim_durumu"]
             ))
@@ -1550,14 +1551,13 @@ class BakimlarTab(QWidget):
                 self.refresh()
 
     def _sil(self):
-        row = self.table.currentRow()
-        if row < 0:
+        data = get_selected_record(self.table, self._data, "bakim_id")
+        if not data:
             show_error(self, "Lütfen bir bakım kaydı seçin."); return
-        data = self._data[row] if row < len(self._data) else None
         if not data: return
         name = f"#{data.get('bakim_id', '')} – {data.get('ekipman_adi', '')}"
         if confirm_delete(self, name):
-            _, err = _safe_proc("sp_bakim_sil", (data["bakim_id"],))
+            err = _safe_void(lambda: self.svc.sil(data["bakim_id"]))
             if err:
                 show_error(self, f"Silme başarısız:\n{err}")
             else:
@@ -1588,14 +1588,18 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Üst başlık şeridi
-        header_bar = self._build_header()
-        layout.addWidget(header_bar)
+        layout.addWidget(self._build_header())
 
-        # Tab widget
-        self.tabs = QTabWidget()
-        self.tabs.setTabPosition(QTabWidget.North)
-        self.tabs.setDocumentMode(False)
+        body = QHBoxLayout()
+        body.setContentsMargins(0, 0, 0, 0)
+        body.setSpacing(0)
+
+        # Sol menü
+        self.sidebar = QListWidget()
+        self.sidebar.setObjectName("sidebarNav")
+        self.sidebar.setFixedWidth(240)
+
+        self.stack = QStackedWidget()
 
         self.dashboard_tab = DashboardTab()
         self.uyeler_tab = UyelerTab()
@@ -1609,72 +1613,68 @@ class MainWindow(QMainWindow):
         self.ekipmanlar_tab = EkipmanlarTab()
         self.bakimlar_tab = BakimlarTab()
 
-        self.tabs.addTab(self.dashboard_tab, "📊  Dashboard")
-        self.tabs.addTab(self.uyeler_tab, "👤  Üyeler")
-        self.tabs.addTab(self.antrenorler_tab, "🏅  Antrenörler")
-        self.tabs.addTab(self.paketler_tab, "📦  Paketler")
-        self.tabs.addTab(self.uyelikler_tab, "🎫  Üyelikler")
-        self.tabs.addTab(self.odemeler_tab, "💳  Ödemeler")
-        self.tabs.addTab(self.dersler_tab, "🏃  Dersler")
-        self.tabs.addTab(self.ders_kayitlari_tab, "📋  Ders Kayıtları")
-        self.tabs.addTab(self.yoklamalar_tab, "✅  Yoklamalar")
-        self.tabs.addTab(self.ekipmanlar_tab, "🏋️  Ekipmanlar")
-        self.tabs.addTab(self.bakimlar_tab, "🔧  Bakımlar")
+        pages = [
+            (self.dashboard_tab, "📊  Dashboard"),
+            (self.uyeler_tab, "👤  Üyeler"),
+            (self.antrenorler_tab, "🏅  Antrenörler"),
+            (self.paketler_tab, "📦  Paketler"),
+            (self.uyelikler_tab, "🎫  Üyelikler"),
+            (self.odemeler_tab, "💳  Ödemeler"),
+            (self.dersler_tab, "🏃  Dersler"),
+            (self.ders_kayitlari_tab, "📋  Ders Kayıtları"),
+            (self.yoklamalar_tab, "✅  Yoklamalar"),
+            (self.ekipmanlar_tab, "🏋️  Ekipmanlar"),
+            (self.bakimlar_tab, "🔧  Bakımlar"),
+        ]
+        for widget, label in pages:
+            self.stack.addWidget(widget)
+            self.sidebar.addItem(QListWidgetItem(label))
 
-        layout.addWidget(self.tabs)
+        self.sidebar.currentRowChanged.connect(self.stack.setCurrentIndex)
+        self.sidebar.setCurrentRow(0)
+
+        body.addWidget(self.sidebar)
+        body.addWidget(self.stack, 1)
+        layout.addLayout(body, 1)
 
     def _build_header(self):
         """Üst başlık çubuğu."""
         bar = QFrame()
-        bar.setFixedHeight(56)
-        bar.setStyleSheet(
-            f"background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
-            f" stop:0 {COLORS['bg_darkest']}, stop:0.5 {COLORS['bg_dark']},"
-            f" stop:1 {COLORS['bg_card']});"
-            f" border-bottom: 1px solid {COLORS['border']};"
-        )
+        bar.setObjectName("topBar")
+        bar.setFixedHeight(64)
         layout = QHBoxLayout(bar)
-        layout.setContentsMargins(20, 0, 20, 0)
+        layout.setContentsMargins(24, 0, 24, 0)
 
-        # Logo + isim
         logo = QLabel("🏋️")
-        logo.setStyleSheet("font-size: 28px; background: transparent;")
+        logo.setStyleSheet("font-size: 30px; background: transparent;")
         layout.addWidget(logo)
 
-        title = QLabel("Spor Salonu Yönetim Sistemi")
+        title_box = QVBoxLayout()
+        title_box.setSpacing(0)
+        title = QLabel("Spor Salonu Yönetim")
         title.setStyleSheet(
-            f"font-size: 16px; font-weight: 800; color: white;"
-            f" letter-spacing: 1px; background: transparent;"
+            f"font-size: 17px; font-weight: 800; color: {COLORS['text_primary']};"
         )
-        layout.addWidget(title)
-
-        badge = QLabel("MySQL · Stored Procedure · PyQt5")
-        badge.setStyleSheet(
-            f"font-size: 11px; color: {COLORS['accent_primary']};"
-            f" background: {COLORS['bg_input']}; border-radius: 10px;"
-            f" padding: 3px 10px; margin-left: 12px;"
-        )
-        layout.addWidget(badge)
+        sub = QLabel("PyQt5  ·  N-Katmanlı  ·  MySQL Stored Procedure")
+        sub.setStyleSheet(f"font-size: 11px; color: {COLORS['text_muted']};")
+        title_box.addWidget(title)
+        title_box.addWidget(sub)
+        layout.addLayout(title_box)
 
         layout.addStretch()
 
-        # Bağlantı durumu
-        self.conn_label = QLabel("🟢  Bağlandı")
+        self.conn_label = QLabel("● Bağlı")
         self.conn_label.setStyleSheet(
-            f"color: {COLORS['accent_success']}; font-size: 12px;"
-            f" font-weight: 600; background: transparent;"
+            f"color: {COLORS['accent_success']}; font-size: 12px; font-weight: 700;"
+            f" background: {COLORS['accent_success']}18; padding: 6px 14px;"
+            f" border-radius: 20px;"
         )
         layout.addWidget(self.conn_label)
 
-        # Çıkış butonu
-        btn_logout = QPushButton("🚪  Çıkış")
-        btn_logout.setFixedHeight(34)
-        btn_logout.setFixedWidth(100)
-        btn_logout.setStyleSheet(
-            f"QPushButton {{ background: {COLORS['bg_input']}; color: {COLORS['text_secondary']};"
-            f" border: 1px solid {COLORS['border']}; border-radius: 6px; font-size: 12px; font-weight: 600; }}"
-            f" QPushButton:hover {{ background: {COLORS['accent_danger']}; color: white; border-color: {COLORS['accent_danger']}; }}"
-        )
+        btn_logout = QPushButton("Çıkış")
+        btn_logout.setObjectName("btnGhost")
+        btn_logout.setFixedHeight(38)
+        btn_logout.setFixedWidth(90)
         btn_logout.clicked.connect(self._logout)
         layout.addWidget(btn_logout)
 
@@ -1685,7 +1685,7 @@ class MainWindow(QMainWindow):
         sb.showMessage(
             f"✅  MySQL bağlantısı kuruldu  |  "
             f"Veritabanı: spor_salonu_db  |  "
-            f"40 Stored Procedure · 3 Trigger · 3 Function"
+            f"Mimari: Presentation → Business → DAL → Stored Procedure"
         )
 
     def _logout(self):
@@ -1694,12 +1694,12 @@ class MainWindow(QMainWindow):
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
         )
         if reply == QMessageBox.Yes:
-            db.disconnect()
+            db.close()
             from login_window import LoginWindow
             self.login_window = LoginWindow()
             self.login_window.show()
             self.close()
 
     def closeEvent(self, event):
-        db.disconnect()
+        db.close()
         event.accept()

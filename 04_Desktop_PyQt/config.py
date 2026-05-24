@@ -7,7 +7,7 @@ DB_CONFIG = {
     "host": "localhost",
     "port": 3306,
     "user": "root",
-    "password": "",
+    "password": "Yakup1962.",
     "database": "spor_salonu_db",
     "charset": "utf8mb4",
     "use_unicode": True,

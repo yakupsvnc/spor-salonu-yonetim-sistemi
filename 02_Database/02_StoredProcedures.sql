@@ -73,8 +73,34 @@ CREATE PROCEDURE sp_uye_sil (
     IN p_uye_id INT
 )
 BEGIN
-    DELETE FROM uyeler
-    WHERE uye_id = p_uye_id;
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  BEGIN
+    ROLLBACK;
+    RESIGNAL;
+  END;
+
+  START TRANSACTION;
+
+  -- Bağlı yoklama kayıtları
+  DELETE y FROM yoklamalar y
+  INNER JOIN ders_kayitlari dk ON y.ders_kayit_id = dk.ders_kayit_id
+  WHERE dk.uye_id = p_uye_id;
+
+  -- Ders kayıtları
+  DELETE FROM ders_kayitlari WHERE uye_id = p_uye_id;
+
+  -- Üyeliğe bağlı ödemeler
+  DELETE o FROM odemeler o
+  INNER JOIN uyelikler u ON o.uyelik_id = u.uyelik_id
+  WHERE u.uye_id = p_uye_id;
+
+  -- Üyelikler
+  DELETE FROM uyelikler WHERE uye_id = p_uye_id;
+
+  -- Üye
+  DELETE FROM uyeler WHERE uye_id = p_uye_id;
+
+  COMMIT;
 END $$
 
 

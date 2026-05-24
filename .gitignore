@@ -32,6 +32,13 @@ build/
 04_Mobil/spor_salonu_mobil/**/*.iml
 
 # ===============================
+# Python (eski kopya — kullanılmıyor)
+# ===============================
+04_Python/
+
+04_Desktop_PyQt/config.py
+
+# ===============================
 # Sistem dosyaları
 # ===============================
 .DS_Store
