@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 try:
     from config import DB_CONFIG
 except ImportError:
-    from config.example import DB_CONFIG  # type: ignore
+    from config_example import DB_CONFIG
 
 
 class DBConnection:
