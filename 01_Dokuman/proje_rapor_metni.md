@@ -767,78 +767,98 @@ Bu dosyada toplam 3 adet trigger bulunmaktadır.
 
 ---
 
+---
+
 # 8. ADIM-4: UYGULAMA GELİŞTİRME VE N-KATMANLI MİMARİ
 
-Bu projede uygulama geliştirme adımı mobil uygulama olarak planlanmıştır.
+Bu projede uygulama geliştirme adımı masaüstü uygulaması olarak gerçekleştirilmiştir. Uygulama arayüzü Python programlama dili ve PyQt5 kütüphanesi kullanılarak geliştirilmiştir.
 
-Mobil uygulama tarafında kullanıcı arayüzü Flutter ile geliştirilecektir. Veritabanı işlemlerinin doğrudan mobil uygulama içinden yapılması yerine, mobil uygulama ASP.NET Core Web API ile haberleşecektir. API tarafında iş kuralları Business Layer içerisinde yönetilecek, veritabanı erişimleri ise Data Access Layer üzerinden gerçekleştirilecektir.
+Uygulama, spor salonu işletmesinin üyeler, antrenörler, üyelik paketleri, üyelikler, ödemeler, dersler, ders kayıtları, yoklamalar, ekipmanlar ve bakım kayıtları gibi temel süreçlerini yönetmek amacıyla hazırlanmıştır.
 
-Bu yapı sayesinde uygulama N-katmanlı mimariye uygun hale getirilmiştir.
-
----
-
-## 8.1. Kullanılan Mimari Yapı
-
-Projede aşağıdaki mimari yapı kullanılacaktır:
-
-Flutter Mobil Uygulama  
-→ ASP.NET Core Web API  
-→ Business Layer  
-→ Data Access Layer  
-→ MySQL Veritabanı  
-→ Stored Procedure / Function / Trigger
+Projede veritabanı işlemlerinin doğrudan arayüz içinde yapılmaması için N-katmanlı mimari yaklaşımı kullanılmıştır. Arayüz katmanı, servis katmanı ve veri erişim katmanı birbirinden ayrılmıştır. Veritabanı işlemleri yalnızca Data Access Layer içerisinde Stored Procedure çağrıları ile yapılmaktadır.
 
 ---
 
-## 8.2. Presentation Layer
+## 8.1. Kullanılan Teknolojiler
+
+Projede kullanılan temel teknolojiler aşağıdaki gibidir:
+
+- Python
+- PyQt5
+- MySQL
+- MySQL Workbench
+- Stored Procedure
+- Function
+- Trigger
+- N-Katmanlı Mimari
+- GitHub
+
+---
+
+## 8.2. Kullanılan Mimari Yapı
+
+Projede aşağıdaki N-katmanlı yapı kullanılmıştır:
+
+```text
+Presentation Layer (PyQt5 Arayüz)
+→ Service Layer / Business Layer
+→ Data Access Layer
+→ Stored Procedure
+→ MySQL Veritabanı
+```
+
+Bu yapı sayesinde arayüz kodları, iş kuralları ve veritabanı erişim kodları birbirinden ayrılmıştır.
+
+---
+
+## 8.3. Presentation Layer
 
 Presentation Layer, kullanıcının sistemle etkileşime geçtiği arayüz katmanıdır.
 
-Bu projede Presentation Layer Flutter mobil uygulamasıdır.
+Bu projede Presentation Layer, PyQt5 ile geliştirilen masaüstü uygulamasıdır.
 
-Bu katmanda yer alacak temel ekranlar:
+Uygulamada yer alan temel ekranlar:
 
-- Ana sayfa
-- Üye listeleme ekranı
-- Üye ekleme ekranı
-- Üyelik paketleri ekranı
-- Üyelik işlemleri ekranı
-- Ödeme işlemleri ekranı
-- Ders listeleme ekranı
-- Ders kayıt ekranı
-- Yoklama ekranı
-- Ekipman ve bakım ekranı
+- Giriş ekranı
+- Dashboard ekranı
+- Üye yönetimi
+- Antrenör yönetimi
+- Üyelik paketi yönetimi
+- Üyelik yönetimi
+- Ödeme yönetimi
+- Ders yönetimi
+- Ders kayıtları yönetimi
+- Yoklama yönetimi
+- Ekipman yönetimi
+- Bakım yönetimi
 
-Presentation Layer doğrudan veritabanına bağlanmayacaktır. Tüm işlemler API üzerinden yapılacaktır.
-
----
-
-## 8.3. Business Layer
-
-Business Layer, sistemdeki iş kurallarının kontrol edildiği katmandır.
-
-Bu katmanda örnek olarak aşağıdaki kontroller yapılacaktır:
-
-- Boş alan kontrolü
-- Telefon ve e-posta format kontrolü
-- Ödeme tutarı kontrolü
-- Üyelik tarih kontrolü
-- Ders kontenjan kontrolü
-- Aktif/pasif durum kontrolü
-
-Business Layer, Presentation Layer’dan gelen istekleri kontrol eder ve uygun işlemler için Data Access Layer’a yönlendirir.
+Arayüz katmanında kullanıcıdan alınan veriler doğrudan SQL komutlarına dönüştürülmez. Kullanıcı işlemleri önce servis katmanına, ardından Data Access Layer’a aktarılır.
 
 ---
 
-## 8.4. Data Access Layer
+## 8.4. Business Layer / Service Layer
 
-Data Access Layer, veritabanı ile iletişim kuran katmandır.
+Business Layer, uygulamadaki iş kurallarının yönetildiği katmandır.
+
+Bu katmanda örnek olarak aşağıdaki kontroller yapılır:
+
+- Zorunlu alanların boş bırakılmaması
+- Telefon ve e-posta bilgilerinin kontrol edilmesi
+- Sayısal alanların geçerli değerler alması
+- Aktif/pasif durumlarının yönetilmesi
+- Kullanıcı işlemlerinin uygun veri erişim metoduna yönlendirilmesi
+
+Business Layer, Presentation Layer’dan gelen istekleri alır ve uygun işlemler için Data Access Layer’a aktarır.
+
+---
+
+## 8.5. Data Access Layer
+
+Data Access Layer, uygulamanın MySQL veritabanı ile iletişim kurduğu katmandır.
 
 Bu projede en önemli kural şudur:
 
-Uygulama içerisinde doğrudan SELECT, INSERT, UPDATE veya DELETE komutları kullanılmayacaktır.
-
-Tüm veritabanı işlemleri yalnızca Stored Procedure çağrıları üzerinden yapılacaktır.
+Uygulama içerisinde doğrudan `SELECT`, `INSERT`, `UPDATE` veya `DELETE` komutları kullanılmamaktadır. Tüm veritabanı işlemleri Stored Procedure çağrıları üzerinden yapılmaktadır.
 
 Örnek:
 
@@ -847,11 +867,11 @@ Tüm veritabanı işlemleri yalnızca Stored Procedure çağrıları üzerinden 
 - Üye silme işlemi için `sp_uye_sil`
 - Üye listeleme işlemi için `sp_uye_listele`
 
-Bu yaklaşım, ödevde belirtilen DAL üzerinden Stored Procedure kullanımı şartını karşılamaktadır.
+Bu yaklaşım, ödevde belirtilen Data Access Layer üzerinden Stored Procedure kullanımı şartını karşılamaktadır.
 
 ---
 
-## 8.5. Veritabanı Katmanı
+## 8.6. Veritabanı Katmanı
 
 Veritabanı katmanı MySQL üzerinde oluşturulmuştur.
 
@@ -868,88 +888,279 @@ Veritabanı kodları `02_Database` klasörü altında hazırlanmıştır.
 
 ---
 
-## 8.6. Uygulama Ekran Görüntüleri
-
-Uygulama geliştirildikten sonra mobil uygulamaya ait ekran görüntüleri bu bölüme eklenecektir.
-
-Eklenecek örnek ekran görüntüleri:
-
-- Ana sayfa
-- Üye listeleme
-- Üye ekleme
-- Ödeme listeleme
-- Ders listeleme
-- Ders kayıt ekranı
-- Yoklama ekranı
-- Ekipman bakım ekranı
-
----
-
 # 9. UYGULAMA VE TEST EKRAN GÖRÜNTÜLERİ
 
-Bu bölümde geliştirilen sistemin çalıştığını gösteren ekran görüntüleri yer almaktadır.
+Bu bölümde geliştirilen sistemin çalıştığını gösteren ekran görüntüleri açıklanmıştır.
 
-Proje kapsamında önce MySQL veritabanı oluşturulmuş, ardından ASP.NET Core Web API ile veritabanına bağlantı sağlanmıştır. API tarafında veritabanı işlemleri Data Access Layer üzerinden Stored Procedure çağrıları ile gerçekleştirilmiştir. Daha sonra Flutter uygulaması bu API üzerinden üye verilerini çekerek ekranda listelemiştir.
+Uygulama masaüstü ortamında PyQt5 ile çalıştırılmıştır. MySQL veritabanına bağlantı sağlanmış, veritabanı işlemleri Data Access Layer üzerinden Stored Procedure çağrılarıyla gerçekleştirilmiştir.
 
 ---
 
-## 9.1. API Üye Listeleme Ekranı
+## 9.1. Giriş Ekranı
 
-Bu ekran görüntüsünde `/api/uyeler` endpoint’i üzerinden üyelerin JSON formatında listelendiği görülmektedir.
+Giriş ekranında kullanıcı adı ve şifre alanları bulunmaktadır. Varsayılan kullanıcı bilgileri ile sisteme giriş yapılabilmektedir.
 
-Bu işlem sırasında sistem aşağıdaki akışla çalışmıştır:
-
-Flutter / Tarayıcı isteği  
-→ ASP.NET Core API  
-→ Business Layer  
-→ Data Access Layer  
-→ `sp_uye_listele` Stored Procedure  
-→ MySQL Veritabanı
+Bu ekran, uygulamanın kullanıcı giriş kontrolü ile başlatıldığını göstermektedir.
 
 **Ekran Görüntüsü Dosyası:**
 
-`api_uyeler_listeleme.png`
+`pyqt_giris_ekrani.png`
 
 ---
 
-## 9.2. Flutter Üye Listesi Ekranı
+## 9.2. Dashboard Ekranı
 
-Bu ekran görüntüsünde Flutter uygulamasının API’den aldığı üye verilerini kullanıcı arayüzünde listelediği görülmektedir.
+Dashboard ekranında sistemin genel durumu özetlenmektedir.
 
-Flutter uygulaması doğrudan veritabanına bağlanmamıştır. Veriler API üzerinden alınmıştır. API ise Data Access Layer aracılığıyla Stored Procedure çağırmıştır.
+Bu ekranda aşağıdaki bilgiler gösterilmektedir:
+
+- Toplam üye sayısı
+- Toplam antrenör sayısı
+- Aktif üyelik sayısı
+- Toplam gelir
+- Toplam ders sayısı
+- Ders kayıt sayısı
+- Ekipman sayısı
+- Bakım kayıt sayısı
+- Son kayıt olan üyeler
+- Sistem bilgileri
+
+Dashboard ekranı, uygulamanın MySQL veritabanından özet bilgileri alarak kullanıcıya sunduğunu göstermektedir.
 
 **Ekran Görüntüsü Dosyası:**
 
-`flutter_uye_listesi.png`
+`pyqt_dashboard.png`
 
 ---
 
-## 9.3. Test Edilen Yapılar
+## 9.3. Üye Yönetimi Ekranı
+
+Üye yönetimi ekranında spor salonu üyeleri listelenmektedir.
+
+Bu ekranda aşağıdaki işlemler yapılabilmektedir:
+
+- Üye listeleme
+- Yeni üye ekleme
+- Üye bilgilerini güncelleme
+- Üye silme
+- Tabloda arama yapma
+- Listeyi yenileme
+
+Bu işlemler doğrudan SQL komutlarıyla değil, Data Access Layer üzerinden ilgili Stored Procedure çağrılarıyla gerçekleştirilmiştir.
+
+**Kullanılan Stored Procedure’ler:**
+
+- `sp_uye_listele`
+- `sp_uye_ekle`
+- `sp_uye_guncelle`
+- `sp_uye_sil`
+
+**Ekran Görüntüsü Dosyası:**
+
+`pyqt_uye_yonetimi.png`
+
+---
+
+## 9.4. Diğer Modül Ekranları
+
+Uygulama yalnızca üye yönetimiyle sınırlı değildir. Sol menü üzerinden diğer modüllere de erişilebilmektedir.
+
+Uygulamada bulunan diğer modüller:
+
+- Antrenörler
+- Paketler
+- Üyelikler
+- Ödemeler
+- Dersler
+- Ders Kayıtları
+- Yoklamalar
+- Ekipmanlar
+- Bakımlar
+
+Bu modüller de aynı mimari mantığıyla çalışmaktadır. Kullanıcı arayüzünden gelen işlemler Service Layer üzerinden Data Access Layer’a aktarılır ve veritabanında Stored Procedure çağrıları ile gerçekleştirilir.
+
+**Örnek Ekran Görüntüleri:**
+
+- `pyqt_antrenorler.png`
+- `pyqt_paketler.png`
+- `pyqt_odemeler.png`
+- `pyqt_dersler.png`
+- `pyqt_ekipmanlar.png`
+- `pyqt_bakimlar.png`
+
+---
+
+## 9.5. Test Edilen Yapılar
 
 Proje kapsamında aşağıdaki yapılar test edilmiştir:
 
 - MySQL veritabanı bağlantısı
 - Tablo oluşturma işlemleri
 - Stored Procedure ile veri ekleme
+- Stored Procedure ile veri güncelleme
+- Stored Procedure ile veri silme
 - Stored Procedure ile veri listeleme
 - Function çalıştırma
 - Trigger çalıştırma
-- API üzerinden üye listeleme
-- Flutter uygulaması üzerinden üye listeleme
+- PyQt5 masaüstü uygulaması üzerinden veri yönetimi
 
 ---
 
-# 10. TESLİM BİLGİLERİ, GITHUB VE VİDEO ANLATIM
+# 10. UYGULAMADA CRUD İŞLEMLERİ
+
+Bu bölümde PyQt5 masaüstü uygulaması üzerinden gerçekleştirilen temel veri işlemleri açıklanmıştır.
+
+Uygulama doğrudan veritabanı tablolarına SQL komutu göndermemektedir. Kullanıcı işlemleri PyQt5 arayüzünden başlamakta, servis katmanına aktarılmakta, ardından Data Access Layer içerisinde Stored Procedure çağrıları ile MySQL veritabanında çalıştırılmaktadır.
+
+Bu akış aşağıdaki gibidir:
+
+```text
+PyQt5 Masaüstü Uygulaması
+→ Service Layer / Business Layer
+→ Data Access Layer
+→ Stored Procedure
+→ MySQL Veritabanı
+```
+
+---
+
+## 10.1. Üye Listeleme İşlemi
+
+Üye listeleme işlemi PyQt5 uygulaması üzerinden yapılmıştır.
+
+Bu işlemde Data Access Layer içerisinde `sp_uye_listele` Stored Procedure çağrılmıştır.
+
+**Kullanılan Stored Procedure:**
+
+`sp_uye_listele`
+
+**Ekran Görüntüsü:**
+
+`pyqt_uye_yonetimi.png`
+
+---
+
+## 10.2. Üye Ekleme İşlemi
+
+PyQt5 uygulamasında “Yeni Ekle” butonu ile yeni üye ekleme işlemi yapılabilmektedir.
+
+Girilen üye bilgileri servis katmanı üzerinden Data Access Layer’a aktarılmış ve `sp_uye_ekle` Stored Procedure çalıştırılmıştır.
+
+**Kullanılan Stored Procedure:**
+
+`sp_uye_ekle`
+
+**Ekran Görüntüsü:**
+
+`pyqt_uye_ekleme.png`
+
+---
+
+## 10.3. Üye Güncelleme İşlemi
+
+PyQt5 uygulamasında “Düzenle” butonu ile seçili üyenin bilgileri güncellenebilmektedir.
+
+Güncelleme işlemi Data Access Layer içerisinde `sp_uye_guncelle` Stored Procedure çağrılarak yapılmıştır.
+
+**Kullanılan Stored Procedure:**
+
+`sp_uye_guncelle`
+
+**Ekran Görüntüsü:**
+
+`pyqt_uye_guncelleme.png`
+
+---
+
+## 10.4. Üye Silme İşlemi
+
+PyQt5 uygulamasında “Sil” butonu ile seçili üye silinebilmektedir.
+
+Silme işlemi Data Access Layer içerisinde `sp_uye_sil` Stored Procedure çağrılarak yapılmıştır.
+
+**Kullanılan Stored Procedure:**
+
+`sp_uye_sil`
+
+**Ekran Görüntüsü:**
+
+`pyqt_uye_silme.png`
+
+---
+
+## 10.5. Değerlendirme
+
+Bu bölümde uygulama üzerinde temel CRUD işlemleri gösterilmiştir. Listeleme, ekleme, güncelleme ve silme işlemlerinin tamamı doğrudan SQL komutlarıyla değil, Stored Procedure çağrılarıyla yapılmıştır.
+
+Bu nedenle uygulama geliştirme kısmı, N-katmanlı mimari ve Data Access Layer üzerinden Stored Procedure kullanımı şartlarına uygun şekilde hazırlanmıştır.
+
+---
+
+# 11. FUNCTION VE TRIGGER TESTLERİ
+
+Bu bölümde sistemde kullanılan function ve trigger yapılarının çalışma mantığı açıklanmıştır.
+
+---
+
+## 11.1. Function Testleri
+
+Projede 3 adet kullanıcı tanımlı function bulunmaktadır.
+
+Test edilen function yapıları:
+
+- `fn_uye_toplam_odeme`
+- `fn_uyelik_kalan_gun`
+- `fn_ders_doluluk_orani`
+
+Bu function’lar MySQL Workbench üzerinde test edilmiştir.
+
+Örnek:
+
+```sql
+SELECT fn_uye_toplam_odeme(1) AS toplam_odeme;
+SELECT fn_uyelik_kalan_gun(1) AS kalan_gun;
+SELECT fn_ders_doluluk_orani(1) AS doluluk_orani;
+```
+
+Bu function’lar sayesinde üyenin toplam ödeme tutarı, üyeliğin kalan günü ve ders doluluk oranı hesaplanabilmektedir.
+
+**Ekran Görüntüsü Dosyası:**
+
+`mysql_function_testleri.png`
+
+---
+
+## 11.2. Trigger Testleri
+
+Projede 3 adet trigger bulunmaktadır.
+
+Test edilen trigger yapıları:
+
+- `trg_odeme_eklendi_uyelik_aktif_yap`
+- `trg_ders_kontenjan_kontrol`
+- `trg_uyelik_tarih_kontrol`
+
+Ödeme başarılı olarak eklendiğinde ilgili üyeliğin otomatik olarak aktif hale geldiği test edilmiştir. Ayrıca bitiş tarihi başlangıç tarihinden önce olan üyelik eklenmeye çalışıldığında sistemin hata verdiği görülmüştür.
+
+Bu işlemler, trigger yapılarının gerçek hayattaki iş kurallarını veritabanı seviyesinde uyguladığını göstermektedir.
+
+**Ekran Görüntüsü Dosyası:**
+
+`mysql_trigger_testleri.png`
+
+---
+
+# 12. TESLİM BİLGİLERİ, GITHUB VE VİDEO ANLATIM
 
 Bu bölümde proje teslim süreci, GitHub yükleme bilgileri ve video anlatım planı açıklanmıştır.
 
 ---
 
-## 10.1. Teslim Dosyası
+## 12.1. Teslim Dosyası
 
 Ödev tesliminde proje tek dosya olarak PDF veya Word formatında yüklenecektir.
 
-Teslim dosyasında aşağıdaki içerikler yer alacaktır:
+Teslim dosyasında aşağıdaki içerikler yer almaktadır:
 
 - Proje konusu
 - Detaylı senaryo
@@ -965,35 +1176,34 @@ Teslim dosyasında aşağıdaki içerikler yer alacaktır:
 - Örnek veriler
 - Test sorguları
 - Uygulama mimarisi
-- API ekran görüntüsü
-- Flutter uygulama ekran görüntüsü
+- Uygulama ekran görüntüleri
 - GitHub linki
 - Video anlatım linki
 
 ---
 
-## 10.2. GitHub Yükleme
+## 12.2. GitHub Yükleme
 
-Proje dosyaları GitHub üzerine yüklenecektir.
+Proje dosyaları GitHub üzerine yüklenmiştir.
 
-GitHub üzerinde aşağıdaki klasör yapısı korunacaktır:
+**GitHub Linki:**
+
+`https://github.com/yakupsvnc/spor-salonu-yonetim-sistemi`
+
+GitHub üzerinde aşağıdaki klasör yapısı yer almaktadır:
 
 - `01_Dokuman`
 - `02_Database`
 - `03_Api`
+- `04_Desktop_PyQt`
 - `04_Mobil`
 - `05_EkranGoruntuleri`
-- `06_Video`
 
-GitHub linki teslim dosyasına eklenecektir.
-
-**GitHub Linki:**
-
-Buraya GitHub proje linki eklenecektir.
+Ana teslim uygulaması `04_Desktop_PyQt` klasörü altında yer alan PyQt5 masaüstü uygulamasıdır.
 
 ---
 
-## 10.3. Video Anlatım
+## 12.3. Video Anlatım
 
 Video anlatım 5-10 dakika aralığında hazırlanacaktır.
 
@@ -1005,109 +1215,23 @@ Videoda aşağıdaki adımlar gösterilecektir:
 4. Stored Procedure listesi gösterilecektir.
 5. Function ve Trigger yapıları açıklanacaktır.
 6. Örnek veriler gösterilecektir.
-7. API üzerinden `/api/uyeler` endpoint’inin çalıştığı gösterilecektir.
-8. Flutter uygulamasında üye listesinin API’den geldiği gösterilecektir.
-9. Uygulamanın N-katmanlı mimariye uygun çalıştığı açıklanacaktır.
+7. PyQt5 masaüstü uygulamasının giriş ekranı gösterilecektir.
+8. Dashboard ekranı gösterilecektir.
+9. Üye listeleme, ekleme, güncelleme ve silme işlemleri gösterilecektir.
+10. Diğer modüllerin ekranları kısaca gösterilecektir.
+11. Uygulamanın N-katmanlı mimariye uygun çalıştığı açıklanacaktır.
+12. GitHub projesinin erişilebilir olduğu gösterilecektir.
 
 **Video Linki:**
 
-Buraya video anlatım linki eklenecektir.
+Video yüklendikten sonra buraya video linki eklenecektir.
 
 ---
 
-## 10.4. Genel Sonuç
+## 12.4. Genel Sonuç
 
-Bu proje kapsamında spor salonu işletmesine yönelik üyelik, antrenör, ders, ödeme, yoklama ve ekipman bakım süreçlerini yöneten bir veritabanı ve uygulama sistemi geliştirilmiştir.
+Bu proje kapsamında spor salonu işletmesine yönelik üyelik, antrenör, ders, ödeme, yoklama ve ekipman bakım süreçlerini yöneten bir veritabanı ve masaüstü uygulama sistemi geliştirilmiştir.
 
-Veritabanı tarafında 10 tablo, 40 Stored Procedure, 3 Function ve 3 Trigger oluşturulmuştur. Uygulama tarafında ASP.NET Core Web API ve Flutter kullanılmıştır. Sistem, N-katmanlı mimariye uygun olarak API, Business Layer, Data Access Layer ve Entity Layer yapılarıyla geliştirilmiştir.
+Veritabanı tarafında 10 tablo, 40 Stored Procedure, 3 Function ve 3 Trigger oluşturulmuştur. Uygulama tarafında Python ve PyQt5 kullanılmıştır. Sistem, N-katmanlı mimariye uygun olarak Presentation Layer, Service/Business Layer ve Data Access Layer yapılarıyla geliştirilmiştir.
 
-Veritabanı işlemleri doğrudan SQL komutlarıyla değil, Data Access Layer üzerinden Stored Procedure çağrılarıyla gerçekleştirilmiştir. Bu sayede proje, ödevde belirtilen temel veritabanı tasarımı ve uygulama geliştirme şartlarına uygun şekilde hazırlanmıştır.
-
----
-
-# 11. UYGULAMADA CRUD İŞLEMLERİ
-
-Bu bölümde Flutter uygulaması üzerinden gerçekleştirilen temel veri işlemleri açıklanmıştır.
-
-Uygulama doğrudan veritabanına bağlanmamaktadır. Kullanıcı işlemleri Flutter arayüzünden başlamakta, ASP.NET Core Web API üzerinden Business Layer’a, oradan Data Access Layer’a ulaşmakta ve son olarak MySQL tarafındaki Stored Procedure yapıları çalıştırılmaktadır.
-
-Bu akış aşağıdaki gibidir:
-
-Flutter Uygulaması  
-→ ASP.NET Core Web API  
-→ Business Layer  
-→ Data Access Layer  
-→ Stored Procedure  
-→ MySQL Veritabanı
-
----
-
-## 11.1. Üye Listeleme İşlemi
-
-Üye listeleme işlemi Flutter uygulaması üzerinden yapılmıştır.
-
-Bu işlemde API tarafında `/api/uyeler` endpoint’i çalıştırılmıştır. Data Access Layer içinde doğrudan SQL komutu yazılmamış, `sp_uye_listele` Stored Procedure çağrılmıştır.
-
-**Kullanılan Stored Procedure:**
-
-`sp_uye_listele`
-
-**Ekran Görüntüsü:**
-
-`flutter_uye_listesi.png`
-
----
-
-## 11.2. Üye Ekleme İşlemi
-
-Flutter uygulamasında “Üye Ekle” butonu ile yeni üye ekleme formu açılmıştır. Girilen üye bilgileri API’ye gönderilmiş, API bu işlemi Business Layer üzerinden Data Access Layer’a aktarmıştır.
-
-Data Access Layer içinde `sp_uye_ekle` Stored Procedure çalıştırılmıştır.
-
-**Kullanılan Stored Procedure:**
-
-`sp_uye_ekle`
-
-**Ekran Görüntüsü:**
-
-`flutter_uye_ekleme_sonrasi.png`
-
----
-
-## 11.3. Üye Güncelleme İşlemi
-
-Flutter uygulamasında üye kartı üzerindeki güncelleme butonu ile üye bilgileri düzenlenmiştir.
-
-Güncelleme işlemi API üzerinden gerçekleştirilmiş ve Data Access Layer içinde `sp_uye_guncelle` Stored Procedure çağrılmıştır.
-
-**Kullanılan Stored Procedure:**
-
-`sp_uye_guncelle`
-
-**Ekran Görüntüsü:**
-
-`flutter_uye_guncelleme_sonrasi.png`
-
----
-
-## 11.4. Üye Silme İşlemi
-
-Flutter uygulamasında üye kartı üzerindeki silme butonu ile üye silme işlemi test edilmiştir.
-
-Silme işlemi API üzerinden gerçekleştirilmiş ve Data Access Layer içinde `sp_uye_sil` Stored Procedure çağrılmıştır.
-
-**Kullanılan Stored Procedure:**
-
-`sp_uye_sil`
-
-**Ekran Görüntüsü:**
-
-`flutter_uye_silme_sonrasi.png`
-
----
-
-## 11.5. Değerlendirme
-
-Bu bölümde uygulama üzerinde temel CRUD işlemleri gösterilmiştir. Listeleme, ekleme, güncelleme ve silme işlemlerinin tamamı doğrudan SQL komutlarıyla değil, Stored Procedure çağrılarıyla yapılmıştır.
-
-Bu nedenle uygulama geliştirme kısmı, N-katmanlı mimari ve Data Access Layer üzerinden Stored Procedure kullanımı şartlarına uygun şekilde hazırlanmıştır.
+Veritabanı işlemleri doğrudan SQL komutlarıyla değil, Data Access Layer üzerinden Stored Procedure çağrılarıyla gerçekleştirilmiştir. Bu sayede proje, ödevde belirtilen veritabanı tasarımı, Stored Procedure kullanımı, Function, Trigger ve N-katmanlı uygulama geliştirme şartlarına uygun şekilde hazırlanmıştır.
